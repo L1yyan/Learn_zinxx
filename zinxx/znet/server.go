@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/rocksun/hellogo/zinxx/utils"
 	"github.com/rocksun/hellogo/zinxx/ziface"
 )
 
@@ -26,7 +27,10 @@ type Server struct {
 
 // 启动服务器
 func (s *Server) Start() {
-	fmt.Printf("[Start] Server Listenner at IP:%s,Port %d, starting\n", s.IP, s.Port)
+	//TODO 可以把下面这些日志文件打到txt文件里
+	fmt.Printf("[Zinx] Server Name: %s, Listenner at IP: %s,Port: %d ,is starting\n",utils.GlobalObject.Name,utils.GlobalObject.Host,utils.GlobalObject.TcpPort)
+	fmt.Printf("[Zinx] Version: %s, MaxConn: %d, MaxPacketSize: %d\n",utils.GlobalObject.Version,utils.GlobalObject.MaxConn,utils.GlobalObject.MaxPackageSzie)
+	
 	// 1 获取一个TCP的Addr
 	go func() {
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
@@ -90,10 +94,10 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 
 func NewServer(name string) ziface.Iserver {
 	s := &Server{
-		Name:      name,
+		Name:      utils.GlobalObject.Name,
 		IPVersion: "tcp4",
-		IP:        "0.0.0.0",
-		Port:      8999,
+		IP:        utils.GlobalObject.Host,
+		Port:      utils.GlobalObject.TcpPort,
 		Router: 	nil,
 	}
 	return s

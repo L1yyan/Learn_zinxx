@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/rocksun/hellogo/zinxx/utils"
 	"github.com/rocksun/hellogo/zinxx/ziface"
 )
 
@@ -45,8 +46,8 @@ func (c *Connection) startReader() {
 	defer fmt.Println("connID = ",c.ConnID,"Reader is exit, remote addr is",c.RemoteAddr().String())
 	defer c.Stop()
 	for {
-		//读取客户端的数据到buf中，最大512字节
-		buf := make([]byte,512)
+		//读取客户端的数据到buf中，最大字节由全局配置定义
+		buf := make([]byte,utils.GlobalObject.MaxPackageSzie)
 		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("recv buf err",err)
