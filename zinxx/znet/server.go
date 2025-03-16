@@ -19,8 +19,10 @@ type Server struct {
 	IP string
 	//服务器监听的端口
 	Port int
-	//当前的Server添加一个router，server注册的连接对应的处理
-	Router ziface.IRouter
+	//当前server消息管理模块，用来绑定msgID和对应的处理业务API
+	MsgHandle ziface.IMsgHandle
+	//该server的连接管理器
+	ConnMgr ziface.IconnManager
 }
 
 
@@ -31,8 +33,12 @@ func (s *Server) Start() {
 	fmt.Printf("[Zinx] Server Name: %s, Listenner at IP: %s,Port: %d ,is starting\n",utils.GlobalObject.Name,utils.GlobalObject.Host,utils.GlobalObject.TcpPort)
 	fmt.Printf("[Zinx] Version: %s, MaxConn: %d, MaxPacketSize: %d\n",utils.GlobalObject.Version,utils.GlobalObject.MaxConn,utils.GlobalObject.MaxPackageSzie)
 	
-	// 1 获取一个TCP的Addr
+	
 	go func() {
+		//0 开启消息队列和工作池
+		s.MsgHandle.StartWorkerPool()
+		
+		// 1 获取一个TCP的Addr
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
 			fmt.Println("resolve tcp addr error :", err)
@@ -58,8 +64,15 @@ func (s *Server) Start() {
 				continue
 			}
 
+			//设置最大连接个数的判断，如果超过最大连接个数，则关闭新连接
+			if s.ConnMgr.Len() >= utils.GlobalObject.MaxConn {
+				//TODO 给客户端响应一个超出最大连接的错误包
+				fmt.Println("Too Many Connection! MaxConn= ",utils.GlobalObject.MaxConn)
+				conn.Close()
+				continue
+			}
 			//将处理新连接的业务方法和Conn 进行绑定 得到我们的连接模块
-			dealConn := NewConnection(conn, cid, s.Router)
+			dealConn := NewConnection(s, conn, cid, s.MsgHandle)
 			cid ++
 			
 			//启动当前的业务连接处理
@@ -72,6 +85,8 @@ func (s *Server) Start() {
 // 停止服务器
 func (s *Server) Stop() {
 	//TODO 将服务器一些资源·状态或者一些已经开辟的连接信息进行停止或回收
+	fmt.Println("[STOP] Zinx server name: ",s.Name)
+	s.ConnMgr.ClearConn()
 }
 
 // 运行服务器
@@ -87,18 +102,22 @@ func (s *Server) Serve() {
 
 
 //路由功能，给当前的服务注册一个路由方法，供客户端的连接处理使用
-func (s *Server) AddRouter(router ziface.IRouter) {
-	s.Router = router
+func (s *Server) AddRouter(msgID uint32, router ziface.IRouter) {
+	s.MsgHandle.AddRouter(msgID, router)
 	fmt.Println("Add Router Succ!!")
 }
 
+func (s *Server) GetConnMgr() ziface.IconnManager {
+	return s.ConnMgr
+}
 func NewServer(name string) ziface.Iserver {
 	s := &Server{
 		Name:      utils.GlobalObject.Name,
 		IPVersion: "tcp4",
 		IP:        utils.GlobalObject.Host,
 		Port:      utils.GlobalObject.TcpPort,
-		Router: 	nil,
+		MsgHandle: 	NewMsgHandle(),
+		ConnMgr: NewConnManager(),
 	}
 	return s
 }
